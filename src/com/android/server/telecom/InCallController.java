@@ -45,7 +45,9 @@ import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.Vibrator;
 import android.permission.PermissionManager;
+import android.provider.Settings;
 import android.telecom.CallAudioState;
 import android.telecom.CallEndpoint;
 import android.telecom.Connection;
@@ -1827,6 +1829,17 @@ public class InCallController extends CallsManagerListenerBase implements
         Log.i(this, "onCallStateChanged: Call state changed for %s: %s -> %s", call.getId(),
                 CallState.toString(oldState), CallState.toString(newState));
         maybeTrackMicrophoneUse(isMuted());
+        boolean vibrateOnConnect = Settings.System.getInt(mContext.getContentResolver(),
+            "vibrate_on_connect", 0) == 1;
+        boolean vibrateOnDisconnect = Settings.System.getInt(mContext.getContentResolver(),
+            "vibrate_on_disconnect", 0) == 1;
+
+        if (oldState == CallState.DIALING && newState == CallState.ACTIVE && vibrateOnConnect) {
+            vibrate(100, 200, 0);
+        } else if (oldState == CallState.ACTIVE && newState == CallState.DISCONNECTED
+                && vibrateOnDisconnect) {
+            vibrate(100, 200, 0);
+        }
 
         // Handle transition to and from local voicemail.  If we start local voicemail for a call,
         // remove it from InCallService tracking.  If we stop local voicemail and go active again,
@@ -1861,6 +1874,13 @@ public class InCallController extends CallsManagerListenerBase implements
             }
         }
         updateCall(call);
+    }
+
+    public void vibrate(int v1, int p1, int v2) {
+        long[] pattern = new long[] {
+            0, v1, p1, v2
+        };
+        ((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE)).vibrate(pattern, -1);
     }
 
     @Override
