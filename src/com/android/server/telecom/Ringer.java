@@ -44,6 +44,7 @@ import android.os.UserManager;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.provider.Settings;
 import android.telecom.Log;
 import android.telecom.TelecomManager;
 import android.util.Pair;
@@ -721,6 +722,11 @@ public class Ringer {
 
         stopRinging();
 
+        if (Settings.System.getInt(mContext.getContentResolver(),
+                "vibrate_on_callwaiting", 0) == 1) {
+            vibrate(200, 300, 500);
+        }
+
         if (mCallWaitingPlayer == null) {
             Log.addEvent(call, LogUtils.Events.START_CALL_WAITING_TONE, reason);
             mCallWaitingCall = call;
@@ -1065,6 +1071,17 @@ public class Ringer {
                 mIsVibrating = false;
             });
         }
+        if (Settings.System.getInt(mContext.getContentResolver(),
+                "vibrate_on_callwaiting", 0) == 1) {
+            vibrate(200, 300, 500);
+        }
+    }
+
+    public void vibrate(int v1, int p1, int v2) {
+        long[] pattern = new long[] {
+            0, v1, p1, v2
+        };
+        ((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE)).vibrate(pattern, -1);
     }
 
     private static int getLineageSystemInt(ContentResolver cr, String name, int def) {
