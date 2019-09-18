@@ -25,6 +25,7 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Person;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.Resources;
 import android.media.AudioAttributes;
@@ -51,6 +52,8 @@ import android.view.accessibility.AccessibilityManager;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.telecom.LogUtils.EventTimer;
 import com.android.server.telecom.flags.FeatureFlags;
+
+import java.lang.reflect.Method;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -486,6 +489,22 @@ public class Ringer {
                 } else {
                     if (DEBUG_RINGER) {
                         Log.i(this, "Create ringer with custom vibration effect");
+                    }
+                    if (getLineageSystemInt(mContext.getContentResolver(),
+                            "increasing_ring", 0) != 0) {
+                        float startVolume = getLineageSystemFloat(mContext.getContentResolver(),
+                                "increasing_ring_start_vol", 0.1f);
+                        int rampUpTime = getLineageSystemInt(mContext.getContentResolver(),
+                                "increasing_ring_ramp_up_time", 20);
+                        mVolumeShaperConfig =
+                                new VolumeShaper.Configuration.Builder()
+                                        .setDuration(rampUpTime * 1000)
+                                        .setCurve(
+                                                new float[]{0.f, 1.f},
+                                                new float[]{startVolume, 1.f})
+                                        .setInterpolatorType(
+                                                VolumeShaper.Configuration.INTERPOLATOR_TYPE_LINEAR)
+                                        .build();
                     }
                     // Ramping ringtone is not enabled.
                     useCustomVibrationEffect = true;
@@ -1045,6 +1064,26 @@ public class Ringer {
                 mVibrator.cancel();
                 mIsVibrating = false;
             });
+        }
+    }
+
+    private static int getLineageSystemInt(ContentResolver cr, String name, int def) {
+        try {
+            Class<?> clazz = Class.forName("lineageos.providers.LineageSettings$System");
+            Method method = clazz.getMethod("getInt", ContentResolver.class, String.class, int.class);
+            return (int) method.invoke(null, cr, name, def);
+        } catch (Throwable t) {
+            return def;
+        }
+    }
+
+    private static float getLineageSystemFloat(ContentResolver cr, String name, float def) {
+        try {
+            Class<?> clazz = Class.forName("lineageos.providers.LineageSettings$System");
+            Method method = clazz.getMethod("getFloat", ContentResolver.class, String.class, float.class);
+            return (float) method.invoke(null, cr, name, def);
+        } catch (Throwable t) {
+            return def;
         }
     }
 }
