@@ -248,6 +248,10 @@ android_library {
 android_library {
     name: "TelecomLib",
     manifest: "AndroidManifestLib.xml",
+    platform_apis: true,
+    apex_available: [
+        "//apex_available:platform",
+    ],
     srcs: [
         "src/**/*.java",
         "legacy-src/com/android/server/telecom/components/TelecomService.java", // This is needed for the platform path.
@@ -273,6 +277,7 @@ android_library {
         "modules-utils-handlerexecutor",
         "modules-utils-list-slice",
         "telecom_module_bugfix_flags-java",
+        "org.lineageos.platform.internal",
     ],
     libs: [
         "framework-telecom.impl",
@@ -318,6 +323,9 @@ android_app {
 // Build the Telecom service.
 android_app {
     name: "Telecom",
+    apex_available: [
+        "//apex_available:platform",
+    ],
     srcs: [
         ":telecom_am_mainline_deps_srcs",
     ],
