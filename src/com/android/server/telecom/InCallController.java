@@ -45,6 +45,8 @@ import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.VibrationAttributes;
+import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.permission.PermissionManager;
 import android.provider.Settings;
@@ -99,6 +101,9 @@ public class InCallController extends CallsManagerListenerBase implements
     public static final String NOTIFICATION_TAG = InCallController.class.getSimpleName();
     public static final int IN_CALL_SERVICE_NOTIFICATION_ID = 3;
     private AnomalyReporterAdapter mAnomalyReporter = new AnomalyReporterAdapterImpl();
+
+    private static final VibrationAttributes VIBRATION_INCALL_ATTRIBUTES =
+            new VibrationAttributes.Builder().setUsage(VibrationAttributes.USAGE_ACCESSIBILITY).build();
 
     /**
      * Anomaly Report UUIDs and corresponding error descriptions specific to InCallController.
@@ -1829,16 +1834,15 @@ public class InCallController extends CallsManagerListenerBase implements
         Log.i(this, "onCallStateChanged: Call state changed for %s: %s -> %s", call.getId(),
                 CallState.toString(oldState), CallState.toString(newState));
         maybeTrackMicrophoneUse(isMuted());
-        boolean vibrateOnConnect = Settings.System.getInt(mContext.getContentResolver(),
-            "vibrate_on_connect", 0) == 1;
-        boolean vibrateOnDisconnect = Settings.System.getInt(mContext.getContentResolver(),
-            "vibrate_on_disconnect", 0) == 1;
-
-        if (oldState == CallState.DIALING && newState == CallState.ACTIVE && vibrateOnConnect) {
-            vibrate(100, 200, 0);
-        } else if (oldState == CallState.ACTIVE && newState == CallState.DISCONNECTED
-                && vibrateOnDisconnect) {
-            vibrate(100, 200, 0);
+        if ((oldState == CallState.RINGING || oldState == CallState.DIALING) &&
+                (newState == CallState.ACTIVE || newState == CallState.ANSWERED)) {
+            boolean vibrateOnConnect = Settings.System.getInt(mContext.getContentResolver(),
+                "vibrate_on_connect", 0) == 1;
+            if (vibrateOnConnect) vibrate(100, 200, 0);
+        } else if (oldState == CallState.ACTIVE && newState == CallState.DISCONNECTED) {
+            boolean vibrateOnDisconnect = Settings.System.getInt(mContext.getContentResolver(),
+                "vibrate_on_disconnect", 0) == 1;
+            if (vibrateOnDisconnect) vibrate(100, 200, 0);
         }
 
         // Handle transition to and from local voicemail.  If we start local voicemail for a call,
@@ -1877,10 +1881,14 @@ public class InCallController extends CallsManagerListenerBase implements
     }
 
     public void vibrate(int v1, int p1, int v2) {
-        long[] pattern = new long[] {
-            0, v1, p1, v2
-        };
-        ((Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE)).vibrate(pattern, -1);
+        Vibrator vibrator = (Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator != null && vibrator.hasVibrator()) {
+            long[] pattern = new long[] {
+                0, v1, p1, v2
+            };
+            vibrator.vibrate(
+                VibrationEffect.createWaveform(pattern, -1), VIBRATION_INCALL_ATTRIBUTES);
+        }
     }
 
     @Override
