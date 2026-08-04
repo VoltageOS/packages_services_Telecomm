@@ -325,7 +325,7 @@ public class BlockedNumbersActivity extends ListActivity
             TelephonyManager tm = (TelephonyManager) context.getSystemService(
                     Context.TELEPHONY_SERVICE);
             return tm.isEmergencyNumber(number);
-        } catch (UnsupportedOperationException | IllegalStateException ignored) {
+        } catch (RuntimeException ignored) {
             return false;
         }
     }
